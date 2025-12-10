@@ -30,16 +30,16 @@
 
 ```python
 # 修改点 1: 欧路词典 API Key
-EUDIC_API_KEY = "NIS /你的欧路API密钥=="
+EUDIC_API_KEY = "NIS /xxx=="
 
 # 修改点 2: 欧路词典生词本ID（可选，默认为 0）
 url = "https://api.frdic.com/api/open/v1/studylist/words?category_id=0"
 
-# 修改点 3: 墨墨背单词 API Key
+# 修改点 3: 墨墨背单词 API Key (APP内获取)
 api_key = "你的墨墨API密钥"
 
 # 修改点 4: 墨墨背单词笔记本ID
-notepad_id = "np-你的笔记本ID"
+notepad_id = "np-xxxxx"
 
 # 修改点 5: 墨墨词库信息（可选）
 payload = {
@@ -79,7 +79,7 @@ python sync_words.py
 
 #### 📱 欧路词典 API Key
 
-1. 登录 [欧路词典开放平台](https://api.frdic.com/)
+1. 登录 [欧路词典开放平台](https://my.eudic.net/OpenAPI/Doc_Index)
 2. 进入「我的应用」创建应用
 3. 复制 API Key（格式：`NIS /xxxxx==`）
 4. 生词本 ID 默认为 `0`，如需使用其他生词本，查看 API 文档获取 ID
@@ -213,7 +213,7 @@ A: 在 `main()` 函数中找到 `message` 变量的赋值部分，自定义你�
 
 ### 开源协议
 
-MIT License
+MPL-2.0 license
 
 ---
 
@@ -243,7 +243,7 @@ Open `sync_words.py` and modify these **7 configuration points**:
 
 ```python
 # Point 1: Eudic API Key
-EUDIC_API_KEY = "NIS /your_eudic_api_key=="
+EUDIC_API_KEY = "NIS /xxxxxxxx=="
 
 # Point 2: Eudic Category ID (optional, default is 0)
 url = "https://api.frdic.com/api/open/v1/studylist/words?category_id=0"
@@ -251,8 +251,8 @@ url = "https://api.frdic.com/api/open/v1/studylist/words?category_id=0"
 # Point 3: Maimemo API Key
 api_key = "your_maimemo_api_key"
 
-# Point 4: Maimemo Notepad ID
-notepad_id = "np-your_notepad_id"
+# Point 4: Maimemo Notepad ID (from APP)
+notepad_id = "np-xxxx"
 
 # Point 5: Maimemo Notepad Info (optional)
 payload = {
@@ -292,7 +292,7 @@ First run will auto-install dependencies:
 
 #### 📱 Eudic API Key
 
-1. Login to [Eudic Open Platform](https://api.frdic.com/)
+1. Login to [Eudic Open Platform](https://my.eudic.net/OpenAPI/Doc_Index)
 2. Go to "My Apps" and create an application
 3. Copy API Key (format: `NIS /xxxxx==`)
 4. Default category ID is `0`, check API docs for other IDs
@@ -426,7 +426,7 @@ A: Find the `message` variable assignment in `main()` function and customize as 
 
 ### License
 
-MIT License
+MPL-2.0 license
 
 ---
 
