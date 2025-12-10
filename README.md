@@ -1,262 +1,450 @@
-# 主程序
-# 可自动安装依赖
-import sys
-import subprocess
+# 欧路词典 → 墨墨背单词 同步工具 / Eudic to Maimemo Sync Tool
 
-def check_and_install_dependencies():
-    """检查并自动安装所需依赖"""
-    required_packages = {
-        'requests': 'requests',
-        'dotenv': 'python-dotenv'
+[English](#english) | [中文](#chinese)
+
+---
+
+<a name="chinese"></a>
+
+## 📖 中文说明
+
+### 功能特性
+
+✅ **自动依赖安装** - 首次运行自动检测并安装 `requests` 和 `python-dotenv`  
+✅ **欧路词典同步** - 自动获取欧路词典生词本  
+✅ **墨墨背单词同步** - 将单词同步到墨墨背单词词库  
+✅ **QQ 消息推送** - 同步结果通过 Qmsg 推送到 QQ  
+✅ **本地文件保存** - 自动保存单词列表到本地文件  
+✅ **时区自动转换** - UTC 时间自动转换为中国时间（UTC+8）  
+✅ **日期分组** - 按添加日期自动分组单词  
+
+### 快速开始
+
+#### 1. 下载脚本
+
+将 `sync_words.py` 下载到本地任意目录。
+
+#### 2. 修改配置
+
+打开 `sync_words.py`，找到以下**7个修改点**并填入你的配置：
+
+```python
+# 修改点 1: 欧路词典 API Key
+EUDIC_API_KEY = "NIS /你的欧路API密钥=="
+
+# 修改点 2: 欧路词典生词本ID（可选，默认为 0）
+url = "https://api.frdic.com/api/open/v1/studylist/words?category_id=0"
+
+# 修改点 3: 墨墨背单词 API Key
+api_key = "你的墨墨API密钥"
+
+# 修改点 4: 墨墨背单词笔记本ID
+notepad_id = "np-你的笔记本ID"
+
+# 修改点 5: 墨墨词库信息（可选）
+payload = {
+    "notepad": {
+        "title": "云同步词库",  # 自定义标题
+        "brief": "暂无简介",    # 自定义简介
+        "tags": ["其他"]       # 自定义标签
     }
-    
-    missing_packages = []
-    
-    # 检查每个包是否已安装
-    for import_name, package_name in required_packages.items():
-        try:
-            if import_name == 'dotenv':
-                __import__('dotenv')
-            else:
-                __import__(import_name)
-        except ImportError:
-            missing_packages.append(package_name)
-    
-    # 如果有缺失的包，自动安装
-    if missing_packages:
-        print(f"[INFO] 检测到缺失的依赖包: {', '.join(missing_packages)}")
-        print("[INFO] 正在自动安装依赖...")
-        
-        for package in missing_packages:
-            try:
-                print(f"[INFO] 安装 {package}...")
-                subprocess.check_call([sys.executable, "-m", "pip", "install", package, "--break-system-packages"])
-                print(f"[SUCCESS] {package} 安装成功!")
-            except subprocess.CalledProcessError as e:
-                print(f"[ERROR] 安装 {package} 失败: {e}")
-                sys.exit(1)
-        
-        print("[SUCCESS] 所有依赖安装完成!")
-        print()
+}
 
-# 首先检查并安装依赖
-check_and_install_dependencies()
+# 修改点 6: Qmsg 推送 Key
+qmsg_key = "你的Qmsg密钥"
 
-# 导入其他必需的模块
-import os
-import requests
-import json
-from collections import defaultdict
-from dotenv import load_dotenv
-from datetime import datetime, timezone, timedelta
-from urllib.parse import quote
+# 修改点 7: 本地保存路径（可选）
+filename = "/www/wwwroot/olu_to_momo/words_data.txt"
+```
 
-# 修改点 1
-EUDIC_API_KEY = "NIS /xxxxxxx =="
+#### 3. 运行脚本
 
-def fetch_word_list():
-    """获取欧路词典生词本"""
-    load_dotenv()
-    
-    headers = {
-        "Authorization": EUDIC_API_KEY,
-        "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-    }
-    
-    # 修改点 2（可不修改）
-    url = "https://api.frdic.com/api/open/v1/studylist/words?category_id=0"
-    # 上边的链接的0代表欧陆词典的生词本编号，默认是0
+```bash
+python sync_words.py
+```
 
-    try:
-        response = requests.get(url, headers=headers, params={"language": "en"})
-        response.raise_for_status()
-        return response.json()
-    except requests.RequestException as e:
-        print(f"[ERROR] 获取单词列表失败: {e}")
-        return None
+首次运行时会自动安装依赖：
 
-def generate_word_output(word_data):
-    """生成按日期分组的单词字符串，并将UTC时间转换为中国时间"""
-    if not word_data or 'data' not in word_data:
-        return ""
+```
+[INFO] 检测到缺失的依赖包: requests, python-dotenv
+[INFO] 正在自动安装依赖...
+[INFO] 安装 requests...
+[SUCCESS] requests 安装成功!
+[INFO] 安装 python-dotenv...
+[SUCCESS] python-dotenv 安装成功!
+[SUCCESS] 所有依赖安装完成!
+```
 
-    # 中国时区 (UTC+8)
-    china_tz = timezone(timedelta(hours=8))
-    
-    grouped_words = defaultdict(list)
-    for item in word_data['data']:
-        # 解析UTC时间
-        utc_time = datetime.fromisoformat(item["add_time"].replace('Z', '+00:00'))
-        # 转换为中国时间
-        china_time = utc_time.astimezone(china_tz)
-        # 获取中国时区的日期
-        date = china_time.strftime("%Y-%m-%d")
-        
-        grouped_words[date].append(item["word"])
+### 获取配置信息
 
-    output_string = ""
-    for date in sorted(grouped_words.keys()):
-        output_string += f"#{date}\n"
-        output_string += "\n".join(grouped_words[date])
-        output_string += "\n"
+#### 📱 欧路词典 API Key
 
-    return output_string
+1. 登录 [欧路词典开放平台](https://api.frdic.com/)
+2. 进入「我的应用」创建应用
+3. 复制 API Key（格式：`NIS /xxxxx==`）
+4. 生词本 ID 默认为 `0`，如需使用其他生词本，查看 API 文档获取 ID
 
-def update_maimemo_notepad(content):
-    """同步到墨墨背单词"""
-    # 加载环境变量
-    load_dotenv()
+#### 📚 墨墨背单词 API
 
-    # 修改点 3
-    # 获取 API 密钥和笔记本 ID
-    api_key = "8acxxxxxxxxxxxxxxxxxxxxxxxxxx54"
-    # 修改点 4
-    notepad_id = "np-xxxx"
-    # id 要去墨墨背单词API文档通过请求单词本去找
-    
-    # 请求 URL
-    url = f"https://open.maimemo.com/open/api/v1/notepads/{notepad_id}"
-    
-    # 请求头
-    headers = {
-        'Accept': 'application/json',
-        'Authorization': f'Bearer {api_key}',
-        'Content-Type': 'application/json'
-    }
-    
-    # 请求数据
-    # 修改点 5（可不修改）
-    payload = {
-        "notepad": {
-            "status": "UNPUBLISHED",
-            "content": content,
-            "title": "云同步词库",
-            "brief": "暂无简介",
-            "tags": ["其他"]
-        }
-    }
-    
-    try:
-        # 发送 POST 请求
-        response = requests.post(url, json=payload, headers=headers)
-        
-        # 检查响应
-        response.raise_for_status()
-        
-        return response.json()
-    except requests.RequestException as e:
-        print(f"[ERROR] 更新墨墨生词本失败: {e}")
-        return None
+1. 访问 [墨墨开放平台](https://open.maimemo.com/)
+2. 登录并创建应用，获取 API Key
+3. **获取笔记本 ID**：
+   ```bash
+   # 使用以下 API 查询你的笔记本列表
+   curl -X GET "https://open.maimemo.com/open/api/v1/notepads" \
+     -H "Authorization: Bearer 你的API_Key"
+   ```
+4. 从返回结果中找到目标笔记本的 ID（格式：`np-xxxx`）
 
-def send_qmsg_notification(message):
-    """发送 Qmsg 推送通知"""
-    load_dotenv()
+#### 💬 Qmsg 推送 Key
 
-    # Qmsg酱 key
-    # 修改点 6
-    qmsg_key = "xxxxxxxxxxxxxxxxxxx"
-    
-    if not qmsg_key:
-        print("[WARNING] 未配置 QMSG_KEY，跳过消息推送")
-        return None
-    
-    # 构建 URL
-    url = f"https://qmsg.zendee.cn/send/{qmsg_key}"
-    
-    try:
-        # 使用 POST 方式发送
-        response = requests.post(
-            url,
-            data={"msg": message},
-            headers={"Content-Type": "application/x-www-form-urlencoded"}
-        )
-        
-        response.raise_for_status()
-        result = response.json()
-        
-        if result.get('success'):
-            print("[SUCCESS] Qmsg 消息推送成功!")
-        else:
-            print(f"[WARNING] Qmsg 推送返回: {result}")
-        
-        return result
-    except requests.RequestException as e:
-        print(f"[ERROR] Qmsg 消息推送失败: {e}")
-        return None
-        
-# 修改点 7（保存路径）
-def save_words_to_file(word_data, filename="/www/wwwroot/olu_to_momo/words_data.txt"):
-    """将单词列表保存到文件中"""
-    try:
-        with open(filename, "w", encoding="utf-8") as file:
-            file.write(generate_word_output(word_data))
-        return True
-    except Exception as e:
-        print(f"[ERROR] 保存单词列表到文件失败: {e}")
-        return False
+1. 访问 [Qmsg 酱官网](https://qmsg.zendee.cn/)
+2. 注册并登录账号
+3. 在「我的」页面绑定 QQ 号
+4. 复制你的 Key
 
-def main():
-    start_time = datetime.now()
-    print(f"[INFO] 开始同步 - {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
-    
-    # 用于收集同步结果的变量
-    sync_status = {
-        "success": False,
-        "word_count": 0,
-        "error_message": None
-    }
-    
-    # 获取欧路单词
-    print("[INFO] 正在获取欧路词典单词...")
-    word_data = fetch_word_list()
-    
-    if word_data:
-        # 保存单词列表到文件
-        word_count = len(word_data.get('data', []))
-        sync_status["word_count"] = word_count
-        print(f"[INFO] 获取到 {word_count} 个单词，正在保存到本地文件...")
-        save_words_to_file(word_data)
-        
-        # 生成输出并同步到墨墨
-        output_string = generate_word_output(word_data)
-        print("[INFO] 正在同步到墨墨背单词...")
-        response = update_maimemo_notepad(output_string)
-        
-        if response and response.get('success'):
-            print("[SUCCESS] 同步完成!")
-            sync_status["success"] = True
-        else:
-            print("[ERROR] 同步失败!")
-            sync_status["error_message"] = "墨墨背单词同步失败"
-    else:
-        print("[ERROR] 未获取到欧路词典单词，同步终止")
-        sync_status["error_message"] = "未获取到欧路词典单词"
-    
-    end_time = datetime.now()
-    duration = (end_time - start_time).total_seconds()
-    print(f"[INFO] 同步结束 - {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"[INFO] 总耗时: {duration:.2f} 秒")
-    
-    # 构建推送消息
-    if sync_status["success"]:
-        message = f"""📚 欧路词典同步成功
+**测试推送：**
+```bash
+# 浏览器访问以下地址测试
+https://qmsg.zendee.cn/send/你的Key?msg=测试消息
+```
+
+### 推送消息示例
+
+#### ✅ 同步成功
+
+```
+📚 欧路词典同步成功
 
 ✅ 状态：同步完成
-📊 单词数量：{sync_status['word_count']} 个
-🕐 时间：{end_time.strftime('%Y-%m-%d %H:%M:%S')}"""
-    else:
-        error_msg = sync_status.get("error_message", "未知错误")
-        message = f"""📚 欧路词典同步失败
+📊 单词数量：125 个
+🕐 时间：2025-12-10 15:30:00
+```
+
+#### ❌ 同步失败
+
+```
+📚 欧路词典同步失败
 
 ❌ 状态：同步失败
-📊 单词数量：{sync_status['word_count']} 个
-⚠️ 错误：{error_msg}
-🕐 时间：{end_time.strftime('%Y-%m-%d %H:%M:%S')}"""
-    
-    # 发送 Qmsg 推送
-    print("[INFO] 正在发送推送通知...")
-    send_qmsg_notification(message)
+📊 单词数量：0 个
+⚠️ 错误：未获取到欧路词典单词
+🕐 时间：2025-12-10 15:30:00
+```
 
-if __name__ == "__main__":
-    main()
+### 设置定时任务
+
+#### Linux/Mac (crontab)
+
+```bash
+# 编辑定时任务
+crontab -e
+
+# 每天早上 8 点自动同步
+0 8 * * * cd /path/to/script && /usr/bin/python3 sync_words.py >> /path/to/sync.log 2>&1
+
+# 每 2 小时同步一次
+0 */2 * * * cd /path/to/script && /usr/bin/python3 sync_words.py >> /path/to/sync.log 2>&1
+```
+
+#### Windows (任务计划程序)
+
+1. 打开「任务计划程序」
+2. 创建基本任务
+3. 触发器：选择「每天」或其他周期
+4. 操作：
+   - 程序：`C:\Python\python.exe`
+   - 参数：`C:\path\to\sync_words.py`
+   - 起始于：`C:\path\to\`
+
+### 输出文件格式
+
+`words_data.txt` 按日期分组保存：
+
+```
+#2025-12-08
+adventure
+challenge
+opportunity
+
+#2025-12-09
+achievement
+benefit
+capability
+
+#2025-12-10
+dedication
+efficiency
+```
+
+### 常见问题
+
+**Q: 如何查看同步日志？**  
+A: 脚本运行时会在控制台输出详细日志，建议使用 `>> log.txt 2>&1` 重定向到文件。
+
+**Q: 推送消息显示乱码？**  
+A: 确保脚本文件使用 UTF-8 编码保存。
+
+**Q: 墨墨同步失败怎么办？**  
+A: 检查：
+1. API Key 是否正确
+2. Notepad ID 是否存在（通过 API 查询确认）
+3. 网络连接是否正常
+
+**Q: 可以不使用 Qmsg 推送吗？**  
+A: 可以，将 `qmsg_key` 留空或注释掉 `send_qmsg_notification(message)` 这行代码即可。
+
+**Q: 如何修改推送消息格式？**  
+A: 在 `main()` 函数中找到 `message` 变量的赋值部分，自定义你想要的格式。
+
+### 依赖说明
+
+- **Python**: >= 3.6
+- **requests**: HTTP 请求库
+- **python-dotenv**: 环境变量管理（本脚本中未强制使用）
+
+### 更新日志
+
+- **v1.0** (2025-12-10)
+  - 首次发布
+  - 支持欧路→墨墨同步
+  - 支持 Qmsg 推送
+  - 自动依赖安装
+
+### 开源协议
+
+MIT License
+
+---
+
+<a name="english"></a>
+
+## 📖 English Documentation
+
+### Features
+
+✅ **Auto Dependency Installation** - Automatically installs `requests` and `python-dotenv` on first run  
+✅ **Eudic Sync** - Fetch vocabulary from Eudic dictionary  
+✅ **Maimemo Sync** - Sync words to Maimemo vocabulary  
+✅ **QQ Notification** - Push sync results to QQ via Qmsg  
+✅ **Local File Save** - Automatically save word list to local file  
+✅ **Timezone Conversion** - Auto convert UTC to China Time (UTC+8)  
+✅ **Date Grouping** - Automatically group words by date added  
+
+### Quick Start
+
+#### 1. Download Script
+
+Download `sync_words.py` to any local directory.
+
+#### 2. Configure Settings
+
+Open `sync_words.py` and modify these **7 configuration points**:
+
+```python
+# Point 1: Eudic API Key
+EUDIC_API_KEY = "NIS /your_eudic_api_key=="
+
+# Point 2: Eudic Category ID (optional, default is 0)
+url = "https://api.frdic.com/api/open/v1/studylist/words?category_id=0"
+
+# Point 3: Maimemo API Key
+api_key = "your_maimemo_api_key"
+
+# Point 4: Maimemo Notepad ID
+notepad_id = "np-your_notepad_id"
+
+# Point 5: Maimemo Notepad Info (optional)
+payload = {
+    "notepad": {
+        "title": "Cloud Sync Vocab",  # Custom title
+        "brief": "No description",    # Custom description
+        "tags": ["Others"]            # Custom tags
+    }
+}
+
+# Point 6: Qmsg Push Key
+qmsg_key = "your_qmsg_key"
+
+# Point 7: Local Save Path (optional)
+filename = "/www/wwwroot/olu_to_momo/words_data.txt"
+```
+
+#### 3. Run Script
+
+```bash
+python sync_words.py
+```
+
+First run will auto-install dependencies:
+
+```
+[INFO] Detected missing packages: requests, python-dotenv
+[INFO] Installing dependencies...
+[INFO] Installing requests...
+[SUCCESS] requests installed successfully!
+[INFO] Installing python-dotenv...
+[SUCCESS] python-dotenv installed successfully!
+[SUCCESS] All dependencies installed!
+```
+
+### Get Configuration Info
+
+#### 📱 Eudic API Key
+
+1. Login to [Eudic Open Platform](https://api.frdic.com/)
+2. Go to "My Apps" and create an application
+3. Copy API Key (format: `NIS /xxxxx==`)
+4. Default category ID is `0`, check API docs for other IDs
+
+#### 📚 Maimemo API
+
+1. Visit [Maimemo Open Platform](https://open.maimemo.com/)
+2. Login and create app to get API Key
+3. **Get Notepad ID**:
+   ```bash
+   # Query your notepad list
+   curl -X GET "https://open.maimemo.com/open/api/v1/notepads" \
+     -H "Authorization: Bearer your_api_key"
+   ```
+4. Find target notepad ID from response (format: `np-xxxx`)
+
+#### 💬 Qmsg Push Key
+
+1. Visit [Qmsg Official Site](https://qmsg.zendee.cn/)
+2. Register and login
+3. Bind QQ number in "My Profile"
+4. Copy your Key
+
+**Test Push:**
+```bash
+# Visit this URL in browser
+https://qmsg.zendee.cn/send/your_key?msg=Test Message
+```
+
+### Push Message Examples
+
+#### ✅ Sync Success
+
+```
+📚 Eudic Sync Success
+
+✅ Status: Completed
+📊 Word Count: 125 words
+🕐 Time: 2025-12-10 15:30:00
+```
+
+#### ❌ Sync Failed
+
+```
+📚 Eudic Sync Failed
+
+❌ Status: Failed
+📊 Word Count: 0 words
+⚠️ Error: Failed to fetch Eudic words
+🕐 Time: 2025-12-10 15:30:00
+```
+
+### Setup Scheduled Tasks
+
+#### Linux/Mac (crontab)
+
+```bash
+# Edit crontab
+crontab -e
+
+# Auto sync at 8:00 AM daily
+0 8 * * * cd /path/to/script && /usr/bin/python3 sync_words.py >> /path/to/sync.log 2>&1
+
+# Sync every 2 hours
+0 */2 * * * cd /path/to/script && /usr/bin/python3 sync_words.py >> /path/to/sync.log 2>&1
+```
+
+#### Windows (Task Scheduler)
+
+1. Open "Task Scheduler"
+2. Create Basic Task
+3. Trigger: Choose "Daily" or other period
+4. Action:
+   - Program: `C:\Python\python.exe`
+   - Arguments: `C:\path\to\sync_words.py`
+   - Start in: `C:\path\to\`
+
+### Output File Format
+
+`words_data.txt` saves words grouped by date:
+
+```
+#2025-12-08
+adventure
+challenge
+opportunity
+
+#2025-12-09
+achievement
+benefit
+capability
+
+#2025-12-10
+dedication
+efficiency
+```
+
+### FAQ
+
+**Q: How to view sync logs?**  
+A: The script outputs detailed logs to console. Recommend redirecting to file with `>> log.txt 2>&1`.
+
+**Q: Push messages showing garbled text?**  
+A: Ensure script file is saved with UTF-8 encoding.
+
+**Q: Maimemo sync failed?**  
+A: Check:
+1. Is API Key correct
+2. Does Notepad ID exist (verify via API query)
+3. Is network connection normal
+
+**Q: Can I disable Qmsg push?**  
+A: Yes, leave `qmsg_key` empty or comment out the `send_qmsg_notification(message)` line.
+
+**Q: How to modify push message format?**  
+A: Find the `message` variable assignment in `main()` function and customize as needed.
+
+### Dependencies
+
+- **Python**: >= 3.6
+- **requests**: HTTP library
+- **python-dotenv**: Environment variable management (not mandatory in this script)
+
+### Changelog
+
+- **v1.0** (2025-12-10)
+  - Initial release
+  - Eudic → Maimemo sync
+  - Qmsg push support
+  - Auto dependency installation
+
+### License
+
+MIT License
+
+---
+
+## 💡 Tips
+
+- Keep your API keys secure and don't share them publicly
+- Test the script manually before setting up scheduled tasks
+- Check logs regularly to ensure sync is working properly
+- Backup your configuration before updating
+
+## 🤝 Contributing
+
+Issues and Pull Requests are welcome!
+
+## 📧 Contact
+
+If you have any questions or suggestions, feel free to open an issue.
+
+---
+
+**Star ⭐ this project if it helps you!**
